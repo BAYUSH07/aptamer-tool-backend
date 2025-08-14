@@ -15,6 +15,12 @@ from generate_rna_structure import plot_secondary_structure
 from fastapi.responses import FileResponse
 import random
 
+# In your main backend Python file
+
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+    
 app = FastAPI()
 
 # Enable CORS for React frontend running at localhost:3000
@@ -165,4 +171,5 @@ def plot_structure(request: StructurePlotRequest):
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
