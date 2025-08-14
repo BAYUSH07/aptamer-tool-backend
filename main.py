@@ -20,7 +20,7 @@ app = FastAPI()
 # CORS middleware to allow requests from your frontend on Netlify and backend itself
 origins = [
     "http://localhost:3000",
-    "https://aptamer-tool-backend.onrender.com/",  # Your Netlify site
+    "paws-aptamers.netlify.app",  # Your Netlify site
     # You can add your custom domain here if you use it
 ]
 
@@ -165,3 +165,4 @@ def plot_structure_endpoint(request: StructurePlotRequest):
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
