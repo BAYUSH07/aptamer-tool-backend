@@ -175,3 +175,4 @@ def plot_structure_endpoint(request: StructurePlotRequest):
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
