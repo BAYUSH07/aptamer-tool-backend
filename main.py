@@ -15,22 +15,25 @@ from generate_rna_structure import plot_secondary_structure
 from fastapi.responses import FileResponse
 import random
 
-    
+
 app = FastAPI()
 
-# In your main backend Python file
+# --- FIX #1: Add your live Netlify URL to the origins list ---
+# You can add more URLs here, like your custom domain when you set it up.
+origins = [
+    "http://localhost:3000",
+    "https://dulcet-starburst-944690.netlify.app", # Your Netlify site
+    "https://aptamer-tool-backend.onrender.com" # Your backend itself
+]
 
-@app.get("/")
-def health_check():
-    return {"status": "ok"}
-# Enable CORS for React frontend running at localhost:3000
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Request models
 class AptamerRequest(BaseModel):
@@ -55,9 +58,10 @@ class StructurePlotRequest(BaseModel):
     sequence: str
     structure: str
 
+# --- FIX #2: This is the ONLY root route now. The duplicate is removed. ---
 @app.get("/")
-def root():
-    return {"message": "RNA Aptamer Generator is running!"}
+def health_check():
+    return {"status": "ok", "message": "RNA Aptamer Generator is running!"}
 
 @app.post("/generate-aptamers")
 def generate(request: AptamerRequest):
@@ -165,12 +169,9 @@ def point_mutate(request: PointMutationRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/plot-structure")
-def plot_structure(request: StructurePlotRequest):
+def plot_structure_endpoint(request: StructurePlotRequest):
     try:
         path = plot_secondary_structure(request.sequence, request.structure)
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
