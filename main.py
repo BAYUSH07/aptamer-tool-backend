@@ -15,25 +15,22 @@ from generate_rna_structure import plot_secondary_structure
 from fastapi.responses import FileResponse
 import random
 
-
 app = FastAPI()
 
-# --- FIX #1: Add your live Netlify URL to the origins list ---
-# You can add more URLs here, like your custom domain when you set it up.
+# CORS middleware to allow requests from your frontend on Netlify and backend itself
 origins = [
     "http://localhost:3000",
-    "https://dulcet-starburst-944690.netlify.app", # Your Netlify site
-    "https://aptamer-tool-backend.onrender.com" # Your backend itself
+    "https://aptamer-tool-backend.onrender.com/",  # Your Netlify site
+    # You can add your custom domain here if you use it
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,  # Use ["*"] for debugging all origins if needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Request models
 class AptamerRequest(BaseModel):
@@ -58,7 +55,6 @@ class StructurePlotRequest(BaseModel):
     sequence: str
     structure: str
 
-# --- FIX #2: This is the ONLY root route now. The duplicate is removed. ---
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "RNA Aptamer Generator is running!"}
@@ -106,18 +102,15 @@ def mutate(request: MutationRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- Robust point mutation logic ---
 def point_mutate_aptamer(aptamer, num_mutations=10):
     bases = ['A', 'U', 'G', 'C']
     aptamer = aptamer.upper()
     if not (20 <= len(aptamer) <= 80):
         raise ValueError("Aptamer length must be between 20 and 80 nucleotides.")
-
     mutations = set()
     mutation_results = []
     attempts = 0
-    max_attempts = num_mutations * 20  # Try longer to avoid returning less than requested.
-
+    max_attempts = num_mutations * 20
     while len(mutation_results) < num_mutations and attempts < max_attempts:
         mutated = list(aptamer)
         pos = random.randint(0, len(mutated) - 1)
@@ -125,14 +118,12 @@ def point_mutate_aptamer(aptamer, num_mutations=10):
         choices = [b for b in bases if b != current_nt]
         mutated[pos] = random.choice(choices)
         mutated_seq = ''.join(mutated)
-        # Guarantee only legit bases and uniqueness
         if mutated_seq == aptamer or mutated_seq in mutations:
             attempts += 1
             continue
         if any(nt not in "AUGC" for nt in mutated_seq):
             attempts += 1
-            continue  # Shouldn't happen, but safety
-        # Calculate properties
+            continue
         gc = gc_content(mutated_seq)
         if not (45 <= gc <= 65):
             attempts += 1
@@ -152,7 +143,6 @@ def point_mutate_aptamer(aptamer, num_mutations=10):
         })
         mutations.add(mutated_seq)
         attempts += 1
-
     if not mutation_results:
         raise ValueError("No valid point mutations generated with the given parameters.")
     return mutation_results
@@ -175,4 +165,3 @@ def plot_structure_endpoint(request: StructurePlotRequest):
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
