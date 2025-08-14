@@ -4,3 +4,4 @@ gunicorn
 ViennaRNA
 pydantic
 matplotlib
+biopython
