@@ -23,7 +23,7 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
             input_path = os.path.join(tmpdir, f"{input_basename}.ss")
             with open(input_path, "w") as f:
                 f.write(f"{sequence}\n{structure}\n")
-            # Run RNAplot (will produce .eps file, not .svg)
+            # Run RNAplot (produces .eps file)
             result = subprocess.run(
                 ["RNAplot", input_path],
                 cwd=tmpdir,
@@ -35,27 +35,37 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
             print(f"[RNAplot STDOUT]:\n{result.stdout}")
             print(f"[RNAplot STDERR]:\n{result.stderr}")
             expected_svg = os.path.join(tmpdir, f"{input_basename}_ss.svg")
-            # If SVG not found, but EPS is present, convert EPS to SVG using Inkscape
+            # If SVG not found, but EPS is present, convert EPS→PDF→SVG
             if not os.path.exists(expected_svg):
                 eps_candidates = [f for f in output_files if f.endswith(".eps")]
                 if eps_candidates:
                     eps_path = os.path.join(tmpdir, eps_candidates[0])
+                    pdf_path = os.path.join(tmpdir, f"{input_basename}.pdf")
                     svg_path = os.path.join(tmpdir, f"{input_basename}_ss.svg")
-                    # Convert EPS to SVG using Inkscape (more reliable than pstoedit)
-                    convert_result = subprocess.run(
-                        ["inkscape", eps_path, "--export-type=svg", "--export-filename", svg_path],
+                    # EPS to PDF
+                    convert_pdf = subprocess.run(
+                        ["ps2pdf", eps_path, pdf_path],
                         capture_output=True,
                         text=True
                     )
-                    if convert_result.returncode != 0 or not os.path.exists(svg_path):
+                    # PDF to SVG
+                    convert_svg = subprocess.run(
+                        ["pdf2svg", pdf_path, svg_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if (convert_pdf.returncode != 0 or convert_svg.returncode != 0
+                        or not os.path.exists(svg_path)):
                         raise HTTPException(
                             status_code=500,
                             detail={
-                                "error": "Could not convert EPS to SVG (Inkscape).",
+                                "error": "Could not convert EPS to SVG (ps2pdf/pdf2svg).",
                                 "output_files": output_files,
                                 "eps_path": eps_path,
-                                "stdout": convert_result.stdout,
-                                "stderr": convert_result.stderr,
+                                "stdout_pdf": convert_pdf.stdout,
+                                "stderr_pdf": convert_pdf.stderr,
+                                "stdout_svg": convert_svg.stdout,
+                                "stderr_svg": convert_svg.stderr,
                             }
                         )
                     expected_svg = svg_path
