@@ -1,7 +1,9 @@
 FROM continuumio/miniconda3:latest
 
-# Install system tools for EPS to SVG conversion (ghostscript and pstoedit)
-RUN apt-get update && apt-get install -y --no-install-recommends ghostscript pstoedit && rm -rf /var/lib/apt/lists/*
+# Install system tools for EPS to SVG conversion (inkscape, ghostscript)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ghostscript inkscape && \
+    rm -rf /var/lib/apt/lists/*
 
 # Add conda-forge and bioconda channels BEFORE environment creation
 RUN conda config --add channels defaults && \
