@@ -35,15 +35,15 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
             print(f"[RNAplot STDOUT]:\n{result.stdout}")
             print(f"[RNAplot STDERR]:\n{result.stderr}")
             expected_svg = os.path.join(tmpdir, f"{input_basename}_ss.svg")
-            # If SVG not found, but EPS is present, convert EPS to SVG
+            # If SVG not found, but EPS is present, convert EPS to SVG using Inkscape
             if not os.path.exists(expected_svg):
                 eps_candidates = [f for f in output_files if f.endswith(".eps")]
                 if eps_candidates:
                     eps_path = os.path.join(tmpdir, eps_candidates[0])
                     svg_path = os.path.join(tmpdir, f"{input_basename}_ss.svg")
-                    # Convert EPS to SVG using pstoedit
+                    # Convert EPS to SVG using Inkscape (more reliable than pstoedit)
                     convert_result = subprocess.run(
-                        ["pstoedit", "-f", "svg", eps_path, svg_path],
+                        ["inkscape", eps_path, "--export-type=svg", "--export-filename", svg_path],
                         capture_output=True,
                         text=True
                     )
@@ -51,7 +51,7 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
                         raise HTTPException(
                             status_code=500,
                             detail={
-                                "error": "Could not convert EPS to SVG.",
+                                "error": "Could not convert EPS to SVG (Inkscape).",
                                 "output_files": output_files,
                                 "eps_path": eps_path,
                                 "stdout": convert_result.stdout,
@@ -75,6 +75,7 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
     except Exception as e:
         print(f"[STRUCTURE ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/plot-structure")
 def plot_rna_structure(input: StructureInput):
     from fastapi.responses import FileResponse, JSONResponse
@@ -82,7 +83,6 @@ def plot_rna_structure(input: StructureInput):
         path = plot_secondary_structure(input.sequence, input.structure)
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except HTTPException as exc:
-        # Return context if there's a detail dict
         if isinstance(exc.detail, dict):
             return JSONResponse(status_code=500, content=exc.detail)
         raise
