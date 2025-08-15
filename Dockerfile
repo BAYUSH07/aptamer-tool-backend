@@ -1,34 +1,26 @@
-FROM python:3.11-slim
+# Use official Miniconda base image for Python and conda
+FROM continuumio/miniconda3:latest
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential autoconf automake libtool pkg-config wget gzip tar \
-    && rm -rf /var/lib/apt/lists/*
+# Create a conda environment named 'paws' with Python and ViennaRNA
+RUN conda create -y -n paws python=3.11 viennarna
 
-# Download, compile, and install ViennaRNA
-RUN wget https://www.tbi.univie.ac.at/RNA/download/sourcecode/ViennaRNA-2.7.0.tar.gz && \
-    tar -xf ViennaRNA-2.7.0.tar.gz && \
-    cd ViennaRNA-2.7.0 && \
-    ./configure --prefix=/usr && \
-    make && make install && \
-    cd .. && rm -rf ViennaRNA-2.7.0 ViennaRNA-2.7.0.tar.gz
+# Make sure conda env is activated for RUN commands
+SHELL ["conda", "run", "-n", "paws", "/bin/bash", "-c"]
 
-
-
-# Set working directory inside container
 WORKDIR /app
 
-# Copy Python dependencies file inside the container
+# Copy requirements and install Python dependencies into the 'paws' env
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files into the container
+# Copy rest of your project files
 COPY . .
 
-# Expose port 10000 (you can change if needed)
+# Add conda env bin directory to PATH for all subsequent instructions and the launched process
+ENV PATH /opt/conda/envs/paws/bin:$PATH
+
+# Expose port for uvicorn/FastAPI
 EXPOSE 10000
 
-# Start the FastAPI server with uvicorn inside container
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Run FastAPI with uvicorn in the conda environment
+CMD ["conda", "run", "-n", "paws", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
