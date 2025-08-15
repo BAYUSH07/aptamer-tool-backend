@@ -3,13 +3,10 @@ import tempfile
 import subprocess
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 router = APIRouter()
-
 class StructureInput(BaseModel):
     sequence: str
     structure: str
-
 def plot_secondary_structure(sequence: str, structure: str) -> str:
     import uuid
     try:
@@ -60,7 +57,6 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
     except Exception as e:
         print(f"[STRUCTURE ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/plot-structure")
 def plot_rna_structure(input: StructureInput):
     from fastapi.responses import FileResponse
