@@ -1,8 +1,9 @@
 FROM python:3.11-slim
 
 # Install ViennaRNA (which includes RNAplot)
-RUN apt-get update && apt-get install -y --no-install-recommends viennarna \
+RUN apt-get update && apt-get install -y --no-install-recommends vienna-rna \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Set working directory inside container
 WORKDIR /app
