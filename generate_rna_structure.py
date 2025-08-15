@@ -23,33 +23,50 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
             input_path = os.path.join(tmpdir, f"{input_basename}.ss")
             with open(input_path, "w") as f:
                 f.write(f"{sequence}\n{structure}\n")
-            # Run RNAplot
+            # Run RNAplot (will produce .eps file, not .svg)
             result = subprocess.run(
                 ["RNAplot", input_path],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True
             )
-            # List all files produced
             output_files = os.listdir(tmpdir)
             print(f"[RNAplot] Output files in {tmpdir}: {output_files}")
             print(f"[RNAplot STDOUT]:\n{result.stdout}")
             print(f"[RNAplot STDERR]:\n{result.stderr}")
             expected_svg = os.path.join(tmpdir, f"{input_basename}_ss.svg")
-            # Fallback: pick first SVG file if available
+            # If SVG not found, but EPS is present, convert EPS to SVG
             if not os.path.exists(expected_svg):
-                svg_candidates = [f for f in output_files if f.endswith(".svg")]
-                if svg_candidates:
-                    expected_svg = os.path.join(tmpdir, svg_candidates[0])
+                eps_candidates = [f for f in output_files if f.endswith(".eps")]
+                if eps_candidates:
+                    eps_path = os.path.join(tmpdir, eps_candidates[0])
+                    svg_path = os.path.join(tmpdir, f"{input_basename}_ss.svg")
+                    # Convert EPS to SVG using pstoedit
+                    convert_result = subprocess.run(
+                        ["pstoedit", "-f", "svg", eps_path, svg_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if convert_result.returncode != 0 or not os.path.exists(svg_path):
+                        raise HTTPException(
+                            status_code=500,
+                            detail={
+                                "error": "Could not convert EPS to SVG.",
+                                "output_files": output_files,
+                                "eps_path": eps_path,
+                                "stdout": convert_result.stdout,
+                                "stderr": convert_result.stderr,
+                            }
+                        )
+                    expected_svg = svg_path
                 else:
-                    # Return all context to the API client for debugging!
                     raise HTTPException(
                         status_code=500,
                         detail={
-                            "error": "RNAplot did not produce any SVG file.",
+                            "error": "RNAplot did not produce any SVG or EPS file.",
                             "output_files": output_files,
                             "stdout": result.stdout,
-                            "stderr": result.stderr
+                            "stderr": result.stderr,
                         }
                     )
             final_path = os.path.join(tempfile.gettempdir(), f"rna_structure_{uid}.svg")
@@ -58,7 +75,6 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
     except Exception as e:
         print(f"[STRUCTURE ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/plot-structure")
 def plot_rna_structure(input: StructureInput):
     from fastapi.responses import FileResponse, JSONResponse
@@ -66,7 +82,7 @@ def plot_rna_structure(input: StructureInput):
         path = plot_secondary_structure(input.sequence, input.structure)
         return FileResponse(path, media_type="image/svg+xml", filename="structure.svg")
     except HTTPException as exc:
-        # If detail is a dict, return as JSON (for frontend to parse/debug)
+        # Return context if there's a detail dict
         if isinstance(exc.detail, dict):
             return JSONResponse(status_code=500, content=exc.detail)
         raise
