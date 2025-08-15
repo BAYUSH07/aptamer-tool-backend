@@ -28,10 +28,9 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
                 f.write(f"{sequence}\n{structure}\n")
             print(f"[RNAplot DEBUG] Input written to: {input_path}")
             print(f"[RNAplot DEBUG] Contents:\n{sequence}\n{structure}")
-            # Run RNAplot
-            # Most conda ViennaRNA builds require '-o svg' to output SVG!
+            # Run RNAplot WITHOUT extra flags (Bioconda builds produce SVG by default for .ss input)
             result = subprocess.run(
-                ["RNAplot", "-o", "svg", input_path],
+                ["RNAplot", input_path],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True
@@ -39,12 +38,11 @@ def plot_secondary_structure(sequence: str, structure: str) -> str:
             print(f"[RNAplot STDOUT]:\n{result.stdout}")
             print(f"[RNAplot STDERR]:\n{result.stderr}")
             if result.returncode != 0:
-                # Show full help if error is an invalid option, for debugging
-                if "invalid option" in result.stderr or "unrecognized option" in result.stderr:
-                    help_out = subprocess.run(
-                        ["RNAplot", "-h"], capture_output=True, text=True
-                    )
-                    print("==== RNAplot -h ====\n" + help_out.stdout)
+                # Print full help for debugging if error occurs
+                help_out = subprocess.run(
+                    ["RNAplot", "-h"], capture_output=True, text=True
+                )
+                print("== RNAplot -h ==\n" + help_out.stdout)
                 raise Exception(f"RNAplot failed with exit code {result.returncode}. stderr: {result.stderr}")
             # ViennaRNA names output as <basename>_ss.svg
             expected_svg = os.path.join(tmpdir, f"{input_basename}_ss.svg")
